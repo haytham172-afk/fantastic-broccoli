@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>غرف النقاش للطلاب</title>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+:root{--bg:#f6f7fb;--card:#fff;--tx:#1b2030;--mu:#667;--pr:#2f6fed;--ok:#1f9d55;--bad:#d64545;--bd:#e1e5ee;--me:#e4edff}
+@media (prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#12151c;--card:#1b2030;--tx:#e8ebf4;--mu:#9aa3b8;--pr:#6b9bff;--ok:#43c47a;--bad:#ff7a7a;--bd:#2c3347;--me:#26355c}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:"Segoe UI",Tahoma,Arial,sans-serif;line-height:1.6}
+.w{max-width:960px;margin:0 auto;padding:16px}
+h1{font-size:1.4rem;margin:.2rem 0}
+p.s{color:var(--mu);margin:.2rem 0 1rem}
+.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.c{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px}
+.c h3{margin:0 0 8px;font-size:1.05rem}
+button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:8px 14px;background:var(--pr);color:#fff}
+button.o{background:transparent;color:var(--pr);border:1px solid var(--pr)}
+button.d{background:var(--bad)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input{font:inherit;padding:9px 12px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx);min-width:0}
+.nm{display:flex;gap:8px;margin-bottom:14px}.nm input{flex:1}
+.note{background:var(--card);border:1px dashed var(--bd);border-radius:12px;padding:10px 14px;color:var(--mu);margin-bottom:12px}
+.big{text-align:center;padding:40px 16px}.big .e{font-size:3rem}
+.rm{display:grid;grid-template-columns:230px 1fr;gap:12px}
+@media(max-width:700px){.rm{grid-template-columns:1fr}}
+.pl{list-style:none;margin:0;padding:0}
+.pl li{font-size:1.05rem;font-weight:600;padding:8px 0;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;gap:6px}
+.ch{display:flex;flex-direction:column;height:60vh;min-height:320px}
+.ms{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:4px 0}
+.m{background:var(--bg);border-radius:10px;padding:6px 10px;max-width:85%;align-self:flex-start;overflow-wrap:anywhere}
+.m.me{background:var(--me);align-self:flex-end}
+.m b{font-size:.8rem;color:var(--mu);display:block}
+.m.sy{align-self:center;background:transparent;color:var(--mu);font-size:.85rem}
+.cm{display:flex;gap:8px;margin-top:8px}.cm input{flex:1}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="w">
+ <div id="v-lobby">
+  <h1>🏫 غرف النقاش</h1>
+  <p class="s">كل غرفة تتسع لـ 5 طلاب فقط. اكتب اسمك ثم اختر غرفتك، أو افتح الرابط الذي أرسله لك المعلم.</p>
+  <div class="nm"><input id="nick" maxlength="24" placeholder="اكتب اسمك هنا"></div>
+  <div class="g" id="grid"></div>
+ </div>
+ <div id="v-wait" class="c big" hidden><div class="e">⏳</div><h2>جاري الدخول إلى الغرفة...</h2></div>
+ <div id="v-full" class="c big" hidden><div class="e">🚫</div><h2>الغرفة ممتلئة</h2><p class="s">اكتمل عدد الطلاب في هذه الغرفة (5 طلاب). اختر غرفة أخرى أو اسأل معلمك.</p><button id="bk">العودة إلى الغرف</button></div>
+ <div id="v-err" class="c big" hidden><div class="e">⚠️</div><h2>تعذّر الاتصال</h2><p class="s" id="errd">تأكد من الإنترنت وأعد المحاولة بعد قليل.</p><div class="row" style="justify-content:center"><button id="rt2">إعادة المحاولة</button><button class="o" id="bk3">العودة</button></div></div>
+ <div id="v-name" class="c big" hidden><div class="e">👋</div><h2 id="nt"></h2><div class="row" style="justify-content:center"><input id="nick2" maxlength="24" placeholder="اكتب اسمك"><button id="go">دخول</button></div></div>
+ <div id="v-room" hidden>
+  <div class="row" style="justify-content:space-between;margin-bottom:10px">
+   <h1 id="rt"></h1>
+   <div class="row"><button id="mic" class="o">🎤 تشغيل الميكروفون</button><button id="lv" class="d">خروج</button></div>
+  </div>
+  <div id="mnote" class="note" hidden></div>
+  <div class="rm">
+   <div class="c"><h3>الموجودون <span id="cnt"></span></h3><ul class="pl" id="pl"></ul></div>
+   <div class="c ch"><div class="ms" id="ms"></div>
+    <div class="cm"><input id="tx" maxlength="500" placeholder="اكتب رسالتك..."><button id="snd">إرسال</button></div></div>
+  </div>
+  <div id="audios" hidden></div>
+ </div>
+</div>
+<script>
+/* ===== إعدادات يمكنك تعديلها ===== */
+const CLASS_CODE="myclass2026";  // غيّره إلى كلمة خاصة بصفك (حروف إنجليزية وأرقام فقط)
+const ROOMS=8;                   // عدد الغرف
+const CAP=5;                     // عدد الطلاب في كل غرفة
+// خوادم الاتصال. TURN ضروري لكثير من شبكات الجوال والمدارس. الحساب أدناه عام ومجاني وقد لا يكون مستقرا،
+// والأفضل أن تنشئ حسابا مجانيا في metered.ca وتضع بياناتك هنا بدلا منه.
+const ICE=[
+ {urls:"stun:stun.l.google.com:19302"},
+ {urls:"stun:global.stun.twilio.com:3478"},
+ {urls:["turn:openrelay.metered.ca:80","turn:openrelay.metered.ca:443","turn:openrelay.metered.ca:443?transport=tcp"],username:"openrelayproject",credential:"openrelayproject"}
+];
+const PCFG={config:{iceServers:ICE}};
+/* ================================== */
+const $=id=>document.getElementById(id);
+const code=((new URLSearchParams(location.search).get("c"))||CLASS_CODE).toLowerCase().replace(/[^a-z0-9]/g,"")||"class";
+const PFX="stdrm"+code+"-";
+const pid=(n,k)=>PFX+"r"+n+"-s"+k;
+const slotOf=id=>+id.split("-s").pop();
+let name="",room=null,micStream=null,baseStream=null,ac=null;
+try{name=localStorage.getItem("nick")||"";}catch(e){}
+$("nick").value=name;
+function show(v){["lobby","wait","full","err","name","room"].forEach(k=>$("v-"+k).hidden=(k!==v));}
+function setName(v){name=(v||"").trim().slice(0,24);try{localStorage.setItem("nick",name);}catch(e){}}
+function hashRoom(){const m=/^#room-(\d+)$/.exec(location.hash);const n=m?+m[1]:0;return n>=1&&n<=ROOMS?n:0;}
+
+/* ---------- الصفحة الرئيسية ---------- */
+let lobbyNames={},lp=null,lobbyTimer=null;
+function renderLobby(){
+ const g=$("grid");g.textContent="";
+ for(let i=1;i<=ROOMS;i++){
+  const ns=Object.keys(lobbyNames[i]||{}).sort().map(k=>lobbyNames[i][k]),full=ns.length>=CAP;
+  const c=document.createElement("div");c.className="c";
+  const h=document.createElement("h3");h.textContent="الغرفة "+i+" ("+ns.length+"/"+CAP+")";
+  const ul=document.createElement("ul");ul.className="pl";ul.style.marginBottom="10px";
+  if(!ns.length){const li=document.createElement("li");li.style.color="var(--mu)";li.textContent="لا أحد بالداخل";ul.appendChild(li);}
+  ns.forEach(n=>{const li=document.createElement("li");li.textContent="👤 "+n;ul.appendChild(li);});
+  const r=document.createElement("div");r.className="row";
+  const e=document.createElement("button");e.textContent=full?"الغرفة ممتلئة":"دخول";e.disabled=full;
+  e.onclick=()=>{const v=$("nick").value.trim();if(!v){$("nick").focus();return;}setName(v);location.hash="room-"+i;};
+  const l=document.createElement("button");l.className="o";l.textContent="نسخ الرابط";
+  l.onclick=async()=>{const t=location.href.split("#")[0]+"#room-"+i;try{await navigator.clipboard.writeText(t);l.textContent="تم النسخ ✓";setTimeout(()=>l.textContent="نسخ الرابط",1500);}catch(x){prompt("انسخ الرابط:",t);}};
+  r.append(e,l);c.append(h,ul,r);g.appendChild(c);
+ }
+}
+/* يعرف من بالداخل عبر "نظرة سريعة" على مقاعد كل غرفة (تتحدث كل 7 ثوان) */
+function startPeek(){
+ if(lp||typeof Peer==="undefined")return;
+ lp=new Peer(undefined,PCFG);lp.on("error",()=>{});lp.on("open",pollLobby);
+ lobbyTimer=setInterval(pollLobby,7000);
+}
+function stopPeek(){clearInterval(lobbyTimer);lobbyTimer=null;try{lp&&lp.destroy();}catch(e){}lp=null;}
+function pollLobby(){
+ if(!lp||!lp.open)return;
+ const res={},me=lp,conns=[];
+ for(let n=1;n<=ROOMS;n++)for(let k=1;k<=CAP;k++){
+  const c=lp.connect(pid(n,k),{metadata:{peek:true}});conns.push(c);
+  c.on("data",d=>{if(d&&d.t==="peek"){(res[n]=res[n]||{})[k]=String(d.n||"طالب").slice(0,24);}});
+  c.on("error",()=>{});
+ }
+ setTimeout(()=>{conns.forEach(c=>{try{c.close();}catch(e){}});if(lp!==me)return;lobbyNames=res;if(!room&&!hashRoom())renderLobby();},3500);
+}
+function route(){
+ const n=hashRoom();
+ if(room&&(!n||n!==room.n))leave(true);
+ if(!n){show("lobby");startPeek();return;}
+ stopPeek();
+ if(room)return;
+ if(name)enter(n);else{$("nt").textContent="مرحبا بك في الغرفة "+n;$("nick2").value="";show("name");}
+}
+window.addEventListener("hashchange",route);
+$("go").onclick=()=>{const v=$("nick2").value.trim();if(!v){$("nick2").focus();return;}setName(v);$("nick").value=name;route();};
+$("rt2").onclick=()=>route();
+$("bk").onclick=$("bk3").onclick=()=>{location.hash="";route();};
+
+/* ---------- الدخول: أول رقم مقعد متاح (1..5) يحجزه الطالب، والخادم يمنع تكرار المقعد ---------- */
+function tryId(id){
+ return new Promise(res=>{
+  const p=new Peer(id,PCFG);let done=false;
+  p.on("open",()=>{done=true;res({ok:true,peer:p});});
+  p.on("error",e=>{if(done)return;done=true;try{p.destroy();}catch(x){}res({ok:false,err:e.type==="unavailable-id"?"taken":(e.type||"other")});});
+  setTimeout(()=>{if(!done){done=true;try{p.destroy();}catch(x){}res({ok:false,err:"timeout"});}},12000);
+ });
+}
+function showErr(c){
+ const m=c==="script"?"تعذّر تحميل مكتبة الاتصال من الإنترنت (قد تكون محجوبة على شبكتك).":"تعذّر الوصول إلى خادم الاتصال المجاني (PeerJS). قد يكون محجوبا على شبكتك أو متوقفا مؤقتا. جرّب شبكة أخرى مثل بيانات الجوال.";
+ $("errd").textContent=m+" (رمز الخطأ: "+c+")";show("err");
+}
+function outStream(){return micStream||baseStream;}
+async function enter(n){
+ show("wait");
+ const me=room={n,slot:0,peer:null,conns:{},names:{},mic:{},calls:{},dialing:{},timer:null,log:[],seen:{},gone:{},stuck:{}};
+ try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();ac.resume&&ac.resume();baseStream=ac.createMediaStreamDestination().stream;}catch(e){baseStream=new MediaStream();}
+ for(let k=1;k<=CAP;k++){
+  const r=await tryId(pid(n,k));
+  if(room!==me){if(r.ok)r.peer.destroy();return;}
+  if(r.ok){me.peer=r.peer;me.slot=k;break;}
+  if(r.err!=="taken"){room=null;showErr(r.err);return;}
+ }
+ if(!me.slot){room=null;show("full");return;}
+ const p=me.peer;
+ p.on("connection",c=>setupConn(c));
+ p.on("call",call=>{call.answer(outStream());setupCall(call);});
+ p.on("disconnected",()=>{try{p.reconnect();}catch(e){}});
+ p.on("error",e=>{if(e&&e.type==="peer-unavailable"){const m=/peer (\S+)/.exec(e.message||"");if(m&&room)room.gone[m[1]]=Date.now();}});
+ $("rt").textContent="الغرفة "+n;$("ms").textContent="";$("mnote").hidden=true;setMicBtn();
+ sys("دخلت الغرفة. اكتب رسالتك، ولتتحدث بالصوت اضغط تشغيل الميكروفون.");
+ show("room");renderPeers();
+ me.timer=setInterval(dialLoop,2000);dialLoop();
+}
+function leave(silent){
+ const me=room;if(!me)return;room=null;
+ clearInterval(me.timer);
+ try{me.peer&&me.peer.destroy();}catch(e){}
+ $("audios").textContent="";
+ if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null;}
+ if(!silent){location.hash="";route();}
+}
+$("lv").onclick=()=>leave(false);
+
+/* ---------- الاتصال بين الطلاب: الأقل رقما يتصل بالأعلى ---------- */
+function dialLoop(){
+ if(!room||!room.peer||room.peer.destroyed)return;
+ for(let j=room.slot+1;j<=CAP;j++){
+  const id=pid(room.n,j);
+  if(room.conns[id]||room.dialing[id])continue;
+  room.dialing[id]=1;
+  const c=room.peer.connect(id,{reliable:true});setupConn(c);
+  const me=room;
+  setTimeout(()=>{delete me.dialing[id];if(!c.open){if(!(me.gone[id]&&Date.now()-me.gone[id]<20000))me.stuck[id]=Date.now();try{c.close();}catch(e){}renderPeers();}},15000);
+ }
+}
+function setupConn(c){
+ const me=room;if(!me)return;
+ if(c.metadata&&c.metadata.peek){c.on("open",()=>{try{c.send({t:"peek",n:name});}catch(e){}setTimeout(()=>{try{c.close();}catch(e){}},600);});return;}
+ c.on("open",()=>{
+  if(room!==me)return;
+  me.conns[c.peer]=c;c.send({t:"hi",n:name,m:micOn()});c.send({t:"sync"});
+  if(me.slot<slotOf(c.peer)&&!me.calls[c.peer]){const call=me.peer.call(c.peer,outStream());if(call)setupCall(call);}
+  renderPeers();
+ });
+ c.on("data",d=>{
+  if(room!==me||!d)return;
+  if(d.t==="hi"){me.names[c.peer]=String(d.n||"طالب").slice(0,24);me.mic[c.peer]=!!d.m;sys(me.names[c.peer]+" انضم إلى الغرفة");renderPeers();}
+  else if(d.t==="mic"){me.mic[c.peer]=!!d.m;renderPeers();}
+  else if(d.t==="sync"){try{c.send({t:"hist",l:me.log.slice(-50)});}catch(e){}}
+  else if(d.t==="hist"&&Array.isArray(d.l)){d.l.slice(-50).forEach(m=>{if(m&&typeof m.x==="string"&&typeof m.id==="string")addMsg(String(m.n||"طالب").slice(0,24),m.x.slice(0,500),false,m.id,m.ts);});}
+  else if(d.t==="chat"&&typeof d.x==="string"&&typeof d.id==="string"){addMsg(me.names[c.peer]||String(d.n||"طالب").slice(0,24),d.x.slice(0,500),false,d.id,d.ts);}
+ });
+ c.on("close",()=>{
+  if(room!==me)return;
+  if(me.conns[c.peer]===c){delete me.conns[c.peer];
+   if(me.names[c.peer])sys(me.names[c.peer]+" غادر الغرفة");
+   delete me.names[c.peer];delete me.mic[c.peer];
+   const a=$("a-"+c.peer);if(a)a.remove();delete me.calls[c.peer];renderPeers();}
+ });
+ c.on("error",()=>{});
+}
+function setupCall(call){
+ const me=room;if(!me)return;
+ me.calls[call.peer]=call;
+ call.on("stream",s=>{
+  let a=$("a-"+call.peer);
+  if(!a){a=document.createElement("audio");a.id="a-"+call.peer;a.autoplay=true;$("audios").appendChild(a);}
+  a.srcObject=s;a.play().catch(()=>{});
+ });
+ call.on("close",()=>{if(me.calls[call.peer]===call)delete me.calls[call.peer];});
+ call.on("error",()=>{});
+}
+
+/* ---------- الواجهة داخل الغرفة ---------- */
+function micOn(){return !!(micStream&&micStream.getAudioTracks()[0].enabled);}
+function renderPeers(){
+ if(!room)return;
+ const ul=$("pl");ul.textContent="";
+ const add=(n,m)=>{const li=document.createElement("li");const a=document.createElement("span");a.textContent=n;const b=document.createElement("span");b.textContent=m?"🎤":"🔇";li.append(a,b);ul.appendChild(li);};
+ add(name+" (أنت)",micOn());
+ Object.keys(room.conns).sort((a,b)=>slotOf(a)-slotOf(b)).forEach(id=>add(room.names[id]||"...",room.mic[id]));
+ $("cnt").textContent="";
+ const bad=Object.keys(room.stuck).filter(id=>!room.conns[id]&&Date.now()-room.stuck[id]<40000);
+ const n=$("mnote");
+ if(bad.length){n.hidden=false;n.textContent="⚠️ يوجد طالب داخل الغرفة لكن الاتصال المباشر به فشل بسبب الشبكة (جوال أو شبكة مقيدة). جرّب شبكة واي فاي مختلفة أو أعد تحميل الصفحة.";}
+ else if(n.textContent.indexOf("⚠️")===0)n.hidden=true;
+}
+function sys(t){const d=document.createElement("div");d.className="m sy";d.textContent=t;$("ms").appendChild(d);$("ms").scrollTop=1e9;}
+function addMsg(who,t,me,id,ts){
+ if(room){if(id){if(room.seen[id])return;room.seen[id]=1;}room.log.push({id,n:who,x:t,ts:ts||Date.now()});if(room.log.length>100)room.log.shift();}
+ const d=document.createElement("div");d.className="m"+(me?" me":"");
+ const b=document.createElement("b");b.textContent=who;const s=document.createElement("span");s.textContent=t;
+ d.append(b,s);$("ms").appendChild(d);$("ms").scrollTop=1e9;
+}
+function broadcast(o){if(!room)return;Object.values(room.conns).forEach(c=>{if(c.open)try{c.send(o);}catch(e){}});}
+function sendChat(){
+ const v=$("tx").value.trim();if(!v||!room)return;
+ const id=Math.random().toString(36).slice(2)+Date.now().toString(36),ts=Date.now();
+ addMsg(name,v,true,id,ts);broadcast({t:"chat",x:v,id,ts,n:name});$("tx").value="";
+}
+$("snd").onclick=sendChat;$("tx").onkeydown=e=>{if(e.key==="Enter")sendChat();};
+function setMicBtn(){const on=micOn();$("mic").textContent=on?"🎤 كتم الميكروفون":"🎤 تشغيل الميكروفون";$("mic").className=on?"":"o";}
+$("mic").onclick=async()=>{
+ if(!room)return;
+ const n=$("mnote");
+ if(!micStream){
+  try{
+   micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});
+   const tr=micStream.getAudioTracks()[0];n.hidden=true;
+   Object.values(room.calls).forEach(call=>{
+    const s=call.peerConnection&&call.peerConnection.getSenders().find(x=>x.track&&x.track.kind==="audio");
+    if(s)s.replaceTrack(tr);
+   });
+  }catch(e){n.hidden=false;n.textContent="تعذّر تشغيل الميكروفون. اسمح للمتصفح باستخدامه (يلزم أن تكون الصفحة على رابط https)، أو تابع النقاش كتابة.";return;}
+ }else{const t=micStream.getAudioTracks()[0];t.enabled=!t.enabled;}
+ setMicBtn();broadcast({t:"mic",m:micOn()});renderPeers();
+};
+window.addEventListener("beforeunload",()=>{try{room&&room.peer&&room.peer.destroy();}catch(e){}});
+
+/* ---------- البداية ---------- */
+renderLobby();
+if(typeof Peer==="undefined"){showErr("script");}else route();
+</script>
+</body>
+</html>
